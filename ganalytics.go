@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,29 +19,18 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/analytics/v3"
-	"gopkg.in/yaml.v2"
 )
 
 var (
-	credsfile = "./config/ga_creds.json"
-	conffile  = "./config/conf.yaml"
 	promGauge = make(map[string]prometheus.Gauge)
-	config    = new(conf)
+	Metrics   = []string{}
 )
 
-// conf defines configuration parameters
-type conf struct {
-	Interval int      `yaml:"interval"`
-	Metrics  []string `yaml:"metrics"`
-	ViewID   string   `yaml:"viewid"`
-	PromPort string   `yaml:"port"`
-}
-
 func init() {
-	config.getConf(conffile)
+	loadMetrics()
 
 	// All metrics are registered as Prometheus Gauge
-	for _, metric := range config.Metrics {
+	for _, metric := range Metrics {
 		promGauge[metric] = prometheus.NewGauge(prometheus.GaugeOpts{
 			Name:        fmt.Sprintf("ga_%s", strings.Replace(metric, ":", "_", 1)),
 			Help:        fmt.Sprintf("Google Analytics %s", metric),
@@ -52,7 +42,7 @@ func init() {
 }
 
 func main() {
-	creds := getCreds(credsfile)
+	creds := getCreds()
 
 	// JSON web token configuration
 	jwtc := jwt.Config{
@@ -84,10 +74,11 @@ func main() {
 			</body>
 			</html>`))
 	})
-	go http.ListenAndServe(fmt.Sprintf(":%s", config.PromPort), nil)
+
+	go http.ListenAndServe(fmt.Sprintf(":%s", os.Getenv("GA_PORT")), nil)
 
 	for {
-		for _, metric := range config.Metrics {
+		for _, metric := range Metrics {
 			// Go routine per mertic
 			go func(metric string) {
 				val := getMetric(rts, metric)
@@ -96,13 +87,19 @@ func main() {
 				promGauge[metric].Set(valf)
 			}(metric)
 		}
-		time.Sleep(time.Second * time.Duration(config.Interval))
+
+		interval, err := strconv.ParseInt(os.Getenv("GA_INTERVAL"), 10, 16)
+		if err != nil {
+			interval = 60
+		}
+
+		time.Sleep(time.Second * time.Duration(interval))
 	}
 }
 
 // getMetric queries GA RealTime API for a specific metric.
 func getMetric(rts *analytics.DataRealtimeService, metric string) string {
-	getc := rts.Get(config.ViewID, metric)
+	getc := rts.Get(os.Getenv("GA_VIEWID"), metric)
 	m, err := getc.Do()
 	if err != nil {
 		panic(err)
@@ -111,25 +108,20 @@ func getMetric(rts *analytics.DataRealtimeService, metric string) string {
 	return m.Rows[0][0]
 }
 
-// conf.getConf reads yaml configuration file
-func (c *conf) getConf(filename string) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	if err = yaml.Unmarshal(data, &c); err != nil {
-		panic(err)
-	}
+func loadMetrics() {
+	raw := os.Getenv("GA_METRICS")
+	Metrics = strings.Fields(raw)
 }
 
 // https://console.developers.google.com/apis/credentials
 // 'Service account keys' creds formated file is expected.
 // NOTE: the email from the creds has to be added to the Analytics permissions
-func getCreds(filename string) (r map[string]string) {
-	data, err := ioutil.ReadFile(filename)
+func getCreds() (r map[string]string) {
+	data, err := ioutil.ReadFile("/run/secrets/GA_CREDS")
 	if err != nil {
 		panic(err)
 	}
+
 	if err = json.Unmarshal(data, &r); err != nil {
 		panic(err)
 	}

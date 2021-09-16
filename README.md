@@ -6,25 +6,13 @@
 
 Obtains Google Analytics RealTime metrics, and presents them to prometheus for scraping.
 
+This fork makes slight changes to the configuration by allowing you to configure everything through environment variables and docker secrets so you don't have to compile the container every time you want to change some settings. Check out the docker-compose file for more info.
+
 ---
 
 ## Quick start
 
-1. Copy your [Google creds][2] json file to ./config/ga_creds.json. The email from the json must be added to the GA project permissions, more on that bellow. We recommend you use port 9674 to avoid conflicts as per Prometheus' [default port allocations](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)
-1. Create yaml configuration file (`./config/conf.yaml`):.
-    ```yaml
-    port: 9674
-    interval: 60
-    viewid: ga:123456789
-    metrics:
-    - rt:pageviews
-    - rt:activeUsers
-    ```
-1. Install dependencies, compile and run.
-    ```bash
-    GO111MODULE=on go build ganalytics.go
-    ./ganalytics
-    ```
+1. Edit the properties in the docker-compose.yml file.
 
 ### ViewID for the Google Analytics
 
@@ -38,22 +26,11 @@ From your Google Analytics Web UI: *Admin (Low left) ==> View Settings (far righ
 
 >*The email from GA API creds must be added to analytics project metrics will be obtained from.*>
 
+## Authors
 
-### Cross compile on a MAC
+Original Author - Pavel Snagovsky, pavel@snagovsky.com
 
-* [Alpine docker image][3] is used for delivery.
-* go should be installed with common compilers - `brew install go --with-cc-common`
-* `creds.json` and `config.yaml` expected to be in `./config/`
-
-```bash
-CGO_ENABLED=0 GOOS=linux go build -ldflags "-s" -a -installsuffix cgo ganalytics.go
-docker build -t ganalytics .
-docker run -it -p 9674:9674 -v $(pwd)/config:/ga/config ganalytics
-```
-
-## Author
-
-Pavel Snagovsky, pavel@snagovsky.com
+Modifications - Andreas May, andreas@maanex.me
 
 ## License
 

@@ -1,4 +1,4 @@
-module github.com/ticketmaster/googleanalytics_exporter
+module github.com/maanex/googleanalytics_exporter
 
 go 1.12
 

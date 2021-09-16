@@ -1,0 +1,16 @@
+version: "3.3"
+
+services:
+  gaexporter:
+    image: ghcr.io/maanex/googleanalytics_exporter:master
+    environment:
+      GA_VIEWID: "ga:123456789" # google analytics view id
+      GA_INTERVAL: 60
+      GA_PORT: 80
+      GA_METRICS: "rt:pageviews rt:activeUsers"
+    secrets:
+      - GA_CREDS
+
+secrets:
+  GA_CREDS:
+    external: true
