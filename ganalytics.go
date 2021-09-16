@@ -24,10 +24,12 @@ import (
 var (
 	promGauge = make(map[string]prometheus.Gauge)
 	Metrics   = []string{}
+	reg       = new(prometheus.Registry)
 )
 
 func init() {
 	loadMetrics()
+	reg = prometheus.NewRegistry()
 
 	// All metrics are registered as Prometheus Gauge
 	for _, metric := range Metrics {
@@ -37,7 +39,7 @@ func init() {
 			ConstLabels: map[string]string{"job": "googleAnalytics"},
 		})
 
-		prometheus.MustRegister(promGauge[metric])
+		reg.MustRegister(promGauge[metric])
 	}
 }
 
@@ -64,7 +66,9 @@ func main() {
 	rts := analytics.NewDataRealtimeService(as)
 
 	// Expose the registered metrics via HTTP.
-	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{
+		Registry: reg,
+	}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>Google Analytics Exporter</title></head>
