@@ -109,6 +109,14 @@ func getMetric(rts *analytics.DataRealtimeService, metric string) string {
 		panic(err)
 	}
 
+	if len(m.Rows) == 0 {
+		return ""
+	}
+
+	if len(m.Rows[0]) == 0 {
+		return ""
+	}
+
 	return m.Rows[0][0]
 }
 
