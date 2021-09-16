@@ -18,6 +18,6 @@ RUN apk --update add git openssh && \
     rm -rf /var/lib/apt/lists/* && \
     rm /var/cache/apk/*
 
-CMD go build ganalytics.go
+RUN go build ganalytics.go
 
 CMD go run ganalytics.go
